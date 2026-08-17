@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { currentUser, switchUserRole, schoolProfile, resetDataToDefaults } = useSchool();
+  const { currentUser, switchUserRole, schoolProfile, resetDataToDefaults, logout } = useSchool();
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotifModal, setShowNotifModal] = useState(false);
@@ -181,6 +181,16 @@ export const Navbar: React.FC = () => {
               <p className="text-[10px] text-slate-500 capitalize">{currentUser.role.toLowerCase()}</p>
             </div>
           </button>
+
+          {/* Top Right Logout Button */}
+          <button
+            onClick={() => logout()}
+            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center gap-1.5 shadow-2xs cursor-pointer ml-1"
+            title="Log out of school portal"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-600" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
         </div>
       </div>
 
@@ -227,10 +237,20 @@ export const Navbar: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setShowProfileModal(false);
+                  logout();
+                }}
+                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center gap-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                Sign Out
+              </button>
               <button
                 onClick={() => setShowProfileModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
               >
                 Close
               </button>

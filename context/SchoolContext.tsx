@@ -39,6 +39,12 @@ import {
 interface SchoolContextType {
   // Current session & auth state
   currentUser: User;
+  isAuthenticated: boolean;
+  adminPassword: string;
+  allUsers: User[];
+  login: (usernameOrId: string, password?: string, role?: UserRole) => { success: boolean; message?: string };
+  logout: () => void;
+  changeAdminPassword: (oldPassword: string, newPassword: string) => { success: boolean; message?: string };
   switchUserRole: (role: UserRole) => void;
   setCurrentUser: (user: User) => void;
 
@@ -109,6 +115,9 @@ const LOCAL_STORAGE_KEY = 'divine_academy_portal_data_v1';
 
 export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]); // Default Admin
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [adminPassword, setAdminPassword] = useState<string>('admin123');
+
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(initialSchoolProfile);
   const [classes, setClasses] = useState<SchoolClass[]>(initialClasses);
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
@@ -124,6 +133,55 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
 
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // Dynamically compile all user accounts across initial users, teachers, students, and parents
+  const allUsers: User[] = React.useMemo(() => {
+    const list: User[] = [...initialUsers];
+
+    // Append teachers if missing
+    teachers.forEach((t) => {
+      if (!list.some((u) => u.teacherId === t.id)) {
+        list.push({
+          id: `user-teacher-${t.id}`,
+          name: t.fullName,
+          email: t.email,
+          role: 'TEACHER',
+          teacherId: t.id,
+          phoneNumber: t.phone,
+          avatarUrl: `https://picsum.photos/seed/${t.id}/100/100`,
+        });
+      }
+    });
+
+    // Append students if missing
+    students.forEach((s) => {
+      if (!list.some((u) => u.studentId === s.id && u.role === 'STUDENT')) {
+        list.push({
+          id: `user-student-${s.id}`,
+          name: s.fullName,
+          email: `${s.fullName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@student.divineacademy.edu.ng`,
+          role: 'STUDENT',
+          studentId: s.id,
+          phoneNumber: s.guardianPhone,
+          avatarUrl: s.passportUrl || `https://picsum.photos/seed/${s.id}/100/100`,
+        });
+      }
+
+      // Append student's parent if missing
+      if (s.guardianName && !list.some((u) => u.role === 'PARENT' && u.name === s.guardianName)) {
+        list.push({
+          id: `user-parent-${s.id}`,
+          name: s.guardianName,
+          email: s.guardianEmail || `${s.guardianName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@parent.divineacademy.edu.ng`,
+          role: 'PARENT',
+          studentId: s.id,
+          phoneNumber: s.guardianPhone,
+        });
+      }
+    });
+
+    return list;
+  }, [teachers, students]);
 
   // Load from local storage on mount
   useEffect(() => {
@@ -146,6 +204,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (parsed.timetable) setTimetable(parsed.timetable);
           if (parsed.announcements) setAnnouncements(parsed.announcements);
           if (parsed.currentUser) setCurrentUser(parsed.currentUser);
+          if (parsed.isAuthenticated !== undefined) setIsAuthenticated(parsed.isAuthenticated);
+          if (parsed.adminPassword) setAdminPassword(parsed.adminPassword);
         }
       } catch (e) {
         console.error('Error loading saved portal data:', e);
@@ -176,6 +236,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         timetable,
         announcements,
         currentUser,
+        isAuthenticated,
+        adminPassword,
       };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (e) {
@@ -197,7 +259,102 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     timetable,
     announcements,
     currentUser,
+    isAuthenticated,
+    adminPassword,
   ]);
+
+  const login = (identifier: string, enteredPassword?: string, role?: UserRole) => {
+    if (!identifier || !identifier.trim()) {
+      return { success: false, message: 'Please enter your username or full name.' };
+    }
+
+    const cleanInput = identifier.trim().toLowerCase();
+
+    // 1. Filter candidates by role if provided
+    const candidates = role ? allUsers.filter((u) => u.role === role) : allUsers;
+
+    let targetUser = candidates.find(
+      (u) =>
+        u.id.toLowerCase() === cleanInput ||
+        u.name.toLowerCase() === cleanInput ||
+        u.email.toLowerCase() === cleanInput
+    );
+
+    // 2. Try partial name/email match within selected role candidates
+    if (!targetUser) {
+      targetUser = candidates.find(
+        (u) =>
+          u.name.toLowerCase().includes(cleanInput) ||
+          u.email.toLowerCase().includes(cleanInput) ||
+          cleanInput.includes(u.name.toLowerCase().split(' ')[0])
+      );
+    }
+
+    // 3. Fallback across all users if role filter was too strict
+    if (!targetUser && role) {
+      targetUser = allUsers.find(
+        (u) =>
+          u.id.toLowerCase() === cleanInput ||
+          u.name.toLowerCase() === cleanInput ||
+          u.email.toLowerCase() === cleanInput ||
+          u.name.toLowerCase().includes(cleanInput)
+      );
+    }
+
+    if (!targetUser) {
+      return {
+        success: false,
+        message: `No account found matching username "${identifier}". Please check your name or email.`,
+      };
+    }
+
+    if (!enteredPassword || !enteredPassword.trim()) {
+      return {
+        success: false,
+        message: 'Password is required for all user accounts. Please enter your account password.',
+      };
+    }
+
+    const trimmedPass = enteredPassword.trim();
+    let expectedPassword = 'admin123';
+
+    if (targetUser.role === 'ADMIN') {
+      expectedPassword = adminPassword;
+    } else if (targetUser.role === 'TEACHER') {
+      expectedPassword = 'teacher123';
+    } else if (targetUser.role === 'STUDENT') {
+      expectedPassword = 'student123';
+    } else if (targetUser.role === 'PARENT') {
+      expectedPassword = 'parent123';
+    }
+
+    if (trimmedPass !== expectedPassword) {
+      return {
+        success: false,
+        message: `Incorrect password for ${targetUser.name} (${targetUser.role.toLowerCase()}).`,
+      };
+    }
+
+    setCurrentUser(targetUser);
+    setIsAuthenticated(true);
+    return { success: true };
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+  };
+
+  const changeAdminPassword = (oldPassword: string, newPassword: string) => {
+    if (oldPassword !== adminPassword) {
+      return { success: false, message: 'The current admin password you entered is incorrect.' };
+    }
+    if (!newPassword || newPassword.trim().length < 4) {
+      return { success: false, message: 'New admin password must be at least 4 characters long.' };
+    }
+
+    setAdminPassword(newPassword.trim());
+    return { success: true, message: 'Admin password updated successfully!' };
+  };
 
   const switchUserRole = (role: UserRole) => {
     const foundUser = initialUsers.find((u) => u.role === role);
@@ -548,6 +705,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <SchoolContext.Provider
       value={{
         currentUser,
+        isAuthenticated,
+        adminPassword,
+        allUsers,
+        login,
+        logout,
+        changeAdminPassword,
         switchUserRole,
         setCurrentUser,
         schoolProfile,
