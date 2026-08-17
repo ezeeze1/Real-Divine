@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSchool } from '@/context/SchoolContext';
-import { CBTExam, CBTQuestion, CBTAttempt } from '@/lib/types';
+import { CBTExam, CBTQuestion, CBTAttempt, Subject } from '@/lib/types';
 import {
   MonitorPlay,
   Plus,
@@ -21,7 +21,20 @@ import {
   Users,
   Brain,
   Trash2,
+  Pencil,
+  BookOpen,
+  Search,
 } from 'lucide-react';
+
+// Utility to shuffle options array randomly for student test takers
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
 
 export const CBTModule: React.FC = () => {
   const {
@@ -36,9 +49,12 @@ export const CBTModule: React.FC = () => {
     createCBTExam,
     updateCBTExam,
     submitCBTAttempt,
+    addSubject,
+    updateSubject,
+    deleteSubject,
   } = useSchool();
 
-  const [activeView, setActiveView] = useState<'list' | 'create' | 'live_test' | 'results_review'>('list');
+  const [activeView, setActiveView] = useState<'list' | 'subjects' | 'create' | 'live_test' | 'results_review'>('list');
 
   // Selected Exam for Taking or Viewing
   const [selectedExam, setSelectedExam] = useState<CBTExam | null>(null);
@@ -52,6 +68,16 @@ export const CBTModule: React.FC = () => {
   const [isExamSubmitted, setIsExamSubmitted] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
 
+  // Subject Catalog Management State on CBT Portal
+  const [subSearchText, setSubSearchText] = useState('');
+  const [subLevelFilter, setSubLevelFilter] = useState<'ALL' | 'JSS' | 'SSS'>('ALL');
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [subCode, setSubCode] = useState('');
+  const [subName, setSubName] = useState('');
+  const [subCategory, setSubCategory] = useState<'Core' | 'Science' | 'Arts' | 'Commercial' | 'General'>('Core');
+  const [subLevelGroup, setSubLevelGroup] = useState<'JSS' | 'SSS' | 'ALL'>('ALL');
+
   // New Exam Creation Form State
   const [newTitle, setNewTitle] = useState('');
   const [newClassId, setNewClassId] = useState(classes[0]?.id || '');
@@ -62,21 +88,12 @@ export const CBTModule: React.FC = () => {
   const [newQuestions, setNewQuestions] = useState<CBTQuestion[]>([]);
 
   // Manual Question Form State inside Exam Creator
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
   const [qText, setQText] = useState('');
   const [optA, setOptA] = useState('');
   const [optB, setOptB] = useState('');
   const [optC, setOptC] = useState('');
   const [optD, setOptD] = useState('');
-
-  // Utility to shuffle options array randomly for student test takers
-  const shuffleArray = <T,>(arr: T[]): T[] => {
-    const shuffled = [...arr];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
 
   // Handle OK & Log Out from Student Portal after Exam Review
   const handleOkLogout = () => {
@@ -206,7 +223,68 @@ export const CBTModule: React.FC = () => {
     return new Date().getTime() >= new Date(isoString).getTime();
   };
 
-  // Add Question to New Exam
+  // CBT Subject Catalog Filter Logic
+  const filteredSubjectsCbt = subjects.filter((s) => {
+    const matchesSearch =
+      s.name.toLowerCase().includes(subSearchText.toLowerCase()) ||
+      s.code.toLowerCase().includes(subSearchText.toLowerCase());
+    const matchesLevel =
+      subLevelFilter === 'ALL' || s.levelGroup === 'ALL' || s.levelGroup === subLevelFilter;
+    return matchesSearch && matchesLevel;
+  });
+
+  // CBT Subject Catalog Modal Actions
+  const openAddSubjectModalCbt = () => {
+    setEditingSubject(null);
+    setSubCode('');
+    setSubName('');
+    setSubCategory('Core');
+    setSubLevelGroup('ALL');
+    setShowSubjectModal(true);
+  };
+
+  const openEditSubjectModalCbt = (sub: Subject) => {
+    setEditingSubject(sub);
+    setSubCode(sub.code);
+    setSubName(sub.name);
+    setSubCategory(sub.category);
+    setSubLevelGroup(sub.levelGroup);
+    setShowSubjectModal(true);
+  };
+
+  const handleDeleteSubjectCbt = (sub: Subject) => {
+    if (window.confirm(`Are you sure you want to delete the subject "${sub.name}" (${sub.code}) from CBT portal?`)) {
+      deleteSubject(sub.id);
+    }
+  };
+
+  const handleSaveSubjectCbt = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subName.trim() || !subCode.trim()) return;
+
+    if (editingSubject) {
+      updateSubject(editingSubject.id, {
+        code: subCode.trim().toUpperCase(),
+        name: subName.trim(),
+        category: subCategory,
+        levelGroup: subLevelGroup,
+      });
+    } else {
+      addSubject({
+        code: subCode.trim().toUpperCase(),
+        name: subName.trim(),
+        category: subCategory,
+        levelGroup: subLevelGroup,
+      });
+    }
+
+    setSubCode('');
+    setSubName('');
+    setEditingSubject(null);
+    setShowSubjectModal(false);
+  };
+
+  // Add / Edit Manual Question in Exam Creator (1, 2, 3, 4, 5...)
   const handleAddQuestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!qText.trim() || !optA.trim() || !optB.trim()) {
@@ -214,23 +292,64 @@ export const CBTModule: React.FC = () => {
       return;
     }
 
-    // Default correct option is Option A; system automatically randomizes option positions during student test taking
-    const question: CBTQuestion = {
-      id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      questionText: qText.trim(),
-      options: [
-        { id: 'opt-a', text: optA.trim() },
-        { id: 'opt-b', text: optB.trim() },
-        { id: 'opt-c', text: optC.trim() || 'Option C' },
-        { id: 'opt-d', text: optD.trim() || 'Option D' },
-      ],
-      correctOptionId: 'opt-a',
-      marks: 4,
-    };
+    if (editingQuestionIndex !== null) {
+      // Update existing question
+      setNewQuestions((prev) =>
+        prev.map((q, idx) =>
+          idx === editingQuestionIndex
+            ? {
+                ...q,
+                questionText: qText.trim(),
+                options: [
+                  { id: 'opt-a', text: optA.trim() },
+                  { id: 'opt-b', text: optB.trim() },
+                  { id: 'opt-c', text: optC.trim() || 'Option C' },
+                  { id: 'opt-d', text: optD.trim() || 'Option D' },
+                ],
+              }
+            : q
+        )
+      );
+      setEditingQuestionIndex(null);
+    } else {
+      // Add new question sequentially
+      const question: CBTQuestion = {
+        id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        questionText: qText.trim(),
+        options: [
+          { id: 'opt-a', text: optA.trim() },
+          { id: 'opt-b', text: optB.trim() },
+          { id: 'opt-c', text: optC.trim() || 'Option C' },
+          { id: 'opt-d', text: optD.trim() || 'Option D' },
+        ],
+        correctOptionId: 'opt-a',
+        marks: 4,
+      };
 
-    setNewQuestions((prev) => [...prev, question]);
+      setNewQuestions((prev) => [...prev, question]);
+    }
 
     // Reset inputs
+    setQText('');
+    setOptA('');
+    setOptB('');
+    setOptC('');
+    setOptD('');
+  };
+
+  const startEditQuestion = (index: number) => {
+    const q = newQuestions[index];
+    if (!q) return;
+    setEditingQuestionIndex(index);
+    setQText(q.questionText);
+    setOptA(q.options.find((o) => o.id === 'opt-a')?.text || q.options[0]?.text || '');
+    setOptB(q.options.find((o) => o.id === 'opt-b')?.text || q.options[1]?.text || '');
+    setOptC(q.options.find((o) => o.id === 'opt-c')?.text || q.options[2]?.text || '');
+    setOptD(q.options.find((o) => o.id === 'opt-d')?.text || q.options[3]?.text || '');
+  };
+
+  const cancelEditQuestion = () => {
+    setEditingQuestionIndex(null);
     setQText('');
     setOptA('');
     setOptB('');
@@ -327,32 +446,196 @@ export const CBTModule: React.FC = () => {
               Computer-Based Testing (CBT) System
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Divine Academy digital examination engine, timed student tests, and auto-marking.
+              Divine Academy digital examination engine, subject catalog management, and auto-marking.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {activeView !== 'list' && (
-              <button
-                onClick={() => setActiveView('list')}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold text-xs transition"
-              >
-                Back to Exam List
-              </button>
-            )}
+          <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+            <button
+              onClick={() => setActiveView('list')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeView === 'list'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileQuestion className="w-3.5 h-3.5 text-emerald-700" />
+              Exams ({cbtExams.length})
+            </button>
 
-            {(currentUser.role === 'ADMIN' || currentUser.role === 'TEACHER') && activeView === 'list' && (
+            <button
+              onClick={() => setActiveView('subjects')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeView === 'subjects'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
+              Subjects ({subjects.length})
+            </button>
+
+            {(currentUser.role === 'ADMIN' || currentUser.role === 'TEACHER') && (
               <button
                 onClick={() => {
                   setNewQuestions([]);
+                  setEditingQuestionIndex(null);
                   setActiveView('create');
                 }}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5"
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  activeView === 'create'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'bg-emerald-800 text-white hover:bg-emerald-900'
+                }`}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 Create CBT Exam
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: SUBJECTS CATALOG (JSS & SSS) WITH EDIT AND DELETE */}
+      {activeView === 'subjects' && (
+        <div className="space-y-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-emerald-700" />
+                CBT Subject Catalog
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Manage all Junior Secondary (JSS 1-3) and Senior Secondary (SS 1-3) subjects. Each subject has edit and delete controls.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search input */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search subjects..."
+                  value={subSearchText}
+                  onChange={(e) => setSubSearchText(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 w-44 focus:outline-none"
+                />
+              </div>
+
+              {/* Level Filter */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                <button
+                  onClick={() => setSubLevelFilter('ALL')}
+                  className={`px-3 py-1 rounded-lg transition ${
+                    subLevelFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                  }`}
+                >
+                  All ({subjects.length})
+                </button>
+                <button
+                  onClick={() => setSubLevelFilter('JSS')}
+                  className={`px-3 py-1 rounded-lg transition ${
+                    subLevelFilter === 'JSS' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                  }`}
+                >
+                  JSS 1-3 ({subjects.filter((s) => s.levelGroup === 'JSS').length})
+                </button>
+                <button
+                  onClick={() => setSubLevelFilter('SSS')}
+                  className={`px-3 py-1 rounded-lg transition ${
+                    subLevelFilter === 'SSS' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                  }`}
+                >
+                  SS 1-3 ({subjects.filter((s) => s.levelGroup === 'SSS').length})
+                </button>
+              </div>
+
+              {(currentUser.role === 'ADMIN' || currentUser.role === 'TEACHER') && (
+                <button
+                  onClick={openAddSubjectModalCbt}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add New Subject
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Subjects Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="p-4">#</th>
+                    <th className="p-4">Code</th>
+                    <th className="p-4">Subject Name</th>
+                    <th className="p-4">Category</th>
+                    <th className="p-4">Target Class Level</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {filteredSubjectsCbt.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400">
+                        No subjects match the selected filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSubjectsCbt.map((sub, index) => (
+                      <tr key={sub.id} className="hover:bg-slate-50/80 transition">
+                        <td className="p-4 font-bold text-slate-400">{index + 1}</td>
+                        <td className="p-4 font-mono font-bold text-emerald-800">{sub.code}</td>
+                        <td className="p-4 font-bold text-slate-900 text-sm">{sub.name}</td>
+                        <td className="p-4">
+                          <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-800 font-bold text-[11px]">
+                            {sub.category}
+                          </span>
+                        </td>
+                        <td className="p-4 font-extrabold">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-md text-[11px] ${
+                              sub.levelGroup === 'JSS'
+                                ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                : sub.levelGroup === 'SSS'
+                                ? 'bg-indigo-100 text-indigo-900 border border-indigo-200'
+                                : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                            }`}
+                          >
+                            {sub.levelGroup === 'JSS'
+                              ? 'Junior Secondary (JSS 1-3)'
+                              : sub.levelGroup === 'SSS'
+                              ? 'Senior Secondary (SS 1-3)'
+                              : 'All Classes (JSS & SSS)'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right space-x-2">
+                          <button
+                            onClick={() => openEditSubjectModalCbt(sub)}
+                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-200 transition inline-flex items-center gap-1.5 shadow-2xs"
+                            title="Edit Subject"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSubjectCbt(sub)}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition inline-flex items-center gap-1.5 shadow-2xs"
+                            title="Delete Subject"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -605,15 +888,33 @@ export const CBTModule: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Manual Entry */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-              <h4 className="font-bold text-slate-900 text-sm">Add Question Manually</h4>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                  <FileQuestion className="w-4 h-4 text-emerald-700" />
+                  {editingQuestionIndex !== null
+                    ? `Editing Question #${editingQuestionIndex + 1}`
+                    : `Add Question #${newQuestions.length + 1} Manually`}
+                </h4>
+                {editingQuestionIndex !== null && (
+                  <button
+                    type="button"
+                    onClick={cancelEditQuestion}
+                    className="text-xs text-slate-500 hover:text-slate-800 font-bold underline"
+                  >
+                    Cancel Editing
+                  </button>
+                )}
+              </div>
 
               <form onSubmit={handleAddQuestion} className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Question Text *</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Question #{editingQuestionIndex !== null ? editingQuestionIndex + 1 : newQuestions.length + 1} Prompt *
+                  </label>
                   <textarea
                     rows={2}
                     required
-                    placeholder="Enter question prompt..."
+                    placeholder={`Enter Question #${editingQuestionIndex !== null ? editingQuestionIndex + 1 : newQuestions.length + 1} text...`}
                     value={qText}
                     onChange={(e) => setQText(e.target.value)}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900"
@@ -622,7 +923,7 @@ export const CBTModule: React.FC = () => {
 
                 <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 font-semibold flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  Option A is automatically set as the correct answer. The CBT engine randomizes the option order for students when taking the exam.
+                  Option A is set as correct by default. Option order is automatically randomized for students when taking the exam.
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -670,20 +971,35 @@ export const CBTModule: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition"
-                >
-                  Add Question to Bank
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition text-xs shadow-xs"
+                  >
+                    {editingQuestionIndex !== null
+                      ? `Update Question #${editingQuestionIndex + 1}`
+                      : `Save Question #${newQuestions.length + 1} to Bank`}
+                  </button>
+                  {editingQuestionIndex !== null && (
+                    <button
+                      type="button"
+                      onClick={cancelEditQuestion}
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
-            {/* Current Question Bank Preview */}
+            {/* Question Bank Preview */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-                  <h4 className="font-bold text-slate-900 text-sm">Question Bank Preview ({newQuestions.length})</h4>
+                  <h4 className="font-bold text-slate-900 text-sm">
+                    Question Bank ({newQuestions.length} Questions)
+                  </h4>
                   <span className="text-xs text-emerald-800 font-bold">
                     Total: {newQuestions.reduce((a, b) => a + b.marks, 0)} Marks
                   </span>
@@ -691,29 +1007,73 @@ export const CBTModule: React.FC = () => {
 
                 <div className="space-y-3 max-h-[380px] overflow-y-auto no-scrollbar">
                   {newQuestions.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-10">No questions added yet.</p>
+                    <p className="text-xs text-slate-400 text-center py-10">
+                      No questions added yet. Use manual entry (Question #1, #2, #3...) or Gemini AI above.
+                    </p>
                   ) : (
                     newQuestions.map((q, idx) => (
-                      <div key={q.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
-                        <div className="flex justify-between font-bold text-slate-900">
-                          <span>Q{idx + 1}. {q.questionText}</span>
-                          <button
-                            onClick={() => setNewQuestions((prev) => prev.filter((item) => item.id !== q.id))}
-                            className="text-rose-600 hover:text-rose-800 font-bold ml-2"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                      <div
+                        key={q.id}
+                        className={`p-3 rounded-xl border text-xs space-y-2 transition ${
+                          editingQuestionIndex === idx
+                            ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200'
+                            : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-bold text-slate-900 text-xs">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 text-[10px] font-black mr-1.5">
+                              Question {idx + 1}
+                            </span>
+                            {q.questionText}
+                          </span>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEditQuestion(idx)}
+                              className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[10px] rounded-md transition flex items-center gap-1"
+                              title="Edit Question"
+                            >
+                              <Pencil className="w-3 h-3 text-amber-700" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewQuestions((prev) => prev.filter((_, i) => i !== idx));
+                                if (editingQuestionIndex === idx) cancelEditQuestion();
+                              }}
+                              className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-900 font-bold text-[10px] rounded-md transition flex items-center gap-1"
+                              title="Delete Question"
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-700" />
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-emerald-800 font-semibold">
-                          Correct: {q.options.find((o) => o.id === q.correctOptionId)?.text}
-                        </p>
+
+                        <div className="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-slate-200/60">
+                          {q.options.map((opt) => (
+                            <div
+                              key={opt.id}
+                              className={`px-2 py-1 rounded-md font-medium truncate ${
+                                opt.id === q.correctOptionId
+                                  ? 'bg-emerald-100/70 text-emerald-900 font-bold'
+                                  : 'text-slate-600 bg-white'
+                              }`}
+                            >
+                              <strong className="uppercase mr-1">{opt.id.replace('opt-', '')}:</strong> {opt.text}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))
                   )}
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2 mt-3">
                 <button
                   type="button"
                   onClick={() => setActiveView('list')}
@@ -726,7 +1086,7 @@ export const CBTModule: React.FC = () => {
                   onClick={handleSaveExam}
                   className="px-6 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-xs"
                 >
-                  Publish CBT Exam
+                  Publish CBT Exam ({newQuestions.length} Questions)
                 </button>
               </div>
             </div>
@@ -1027,6 +1387,95 @@ export const CBTModule: React.FC = () => {
                 {currentUser.role === 'STUDENT' ? 'OK (Log Out & Finish Exam)' : 'OK (Return to Examination Hub)'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CBT Subject Modal (Add / Edit) */}
+      {showSubjectModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="font-bold text-slate-900 text-base">
+                {editingSubject ? `Edit Subject: ${editingSubject.name}` : 'Add New Subject to CBT'}
+              </h3>
+              <button onClick={() => setShowSubjectModal(false)} className="text-slate-400 font-bold text-sm">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSubjectCbt} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Subject Code *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. ENG101"
+                    value={subCode}
+                    onChange={(e) => setSubCode(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase text-slate-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Subject Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. English Studies"
+                    value={subName}
+                    onChange={(e) => setSubName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Category</label>
+                  <select
+                    value={subCategory}
+                    onChange={(e) => setSubCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900"
+                  >
+                    <option value="Core">Core</option>
+                    <option value="Science">Science</option>
+                    <option value="Arts">Arts</option>
+                    <option value="Commercial">Commercial</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Target Class Level</label>
+                  <select
+                    value={subLevelGroup}
+                    onChange={(e) => setSubLevelGroup(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900"
+                  >
+                    <option value="JSS">Junior Secondary (JSS 1-3)</option>
+                    <option value="SSS">Senior Secondary (SS 1-3)</option>
+                    <option value="ALL">All Classes (JSS & SSS)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowSubjectModal(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold transition shadow-xs"
+                >
+                  {editingSubject ? 'Update Subject' : 'Save Subject'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

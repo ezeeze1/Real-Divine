@@ -78,15 +78,39 @@ export const initialClasses: SchoolClass[] = [
 ];
 
 export const initialSubjects: Subject[] = [
-  { id: 'sub-mth', code: 'MTH101', name: 'Mathematics', category: 'Core', levelGroup: 'ALL' },
-  { id: 'sub-eng', code: 'ENG101', name: 'English Language', category: 'Core', levelGroup: 'ALL' },
-  { id: 'sub-bst', code: 'BST101', name: 'Basic Science & Tech', category: 'Science', levelGroup: 'JSS' },
-  { id: 'sub-phy', code: 'PHY201', name: 'Physics', category: 'Science', levelGroup: 'SSS' },
-  { id: 'sub-chm', code: 'CHM201', name: 'Chemistry', category: 'Science', levelGroup: 'SSS' },
-  { id: 'sub-bio', code: 'BIO201', name: 'Biology', category: 'Science', levelGroup: 'SSS' },
-  { id: 'sub-agr', code: 'AGR101', name: 'Agricultural Science', category: 'General', levelGroup: 'ALL' },
-  { id: 'sub-civ', code: 'CIV101', name: 'Civic Education', category: 'Core', levelGroup: 'ALL' },
-  { id: 'sub-eco', code: 'ECO201', name: 'Economics', category: 'Commercial', levelGroup: 'SSS' },
+  // JSS 1 - 3 Subjects
+  { id: 'sub-eng-jss', code: 'ENG101', name: 'English Studies', category: 'Core', levelGroup: 'JSS' },
+  { id: 'sub-mth-jss', code: 'MTH101', name: 'Mathematics', category: 'Core', levelGroup: 'JSS' },
+  { id: 'sub-nig-jss', code: 'NIG101', name: 'Nigerian Language', category: 'Arts', levelGroup: 'JSS' },
+  { id: 'sub-isc-jss', code: 'ISC101', name: 'Intermediate Science', category: 'Science', levelGroup: 'JSS' },
+  { id: 'sub-phe-jss', code: 'PHE101', name: 'Physical & Health Education', category: 'General', levelGroup: 'JSS' },
+  { id: 'sub-dig-jss', code: 'DIG101', name: 'Digital Technologies', category: 'Science', levelGroup: 'JSS' },
+  { id: 'sub-crs-jss', code: 'CRS101', name: 'CRS', category: 'Arts', levelGroup: 'JSS' },
+  { id: 'sub-his-jss', code: 'HIS101', name: 'Nigerian History', category: 'Arts', levelGroup: 'JSS' },
+  { id: 'sub-scs-jss', code: 'SCS101', name: 'Social & Citizenship Studies', category: 'Core', levelGroup: 'JSS' },
+  { id: 'sub-cca-jss', code: 'CCA101', name: 'CCA', category: 'Arts', levelGroup: 'JSS' },
+  { id: 'sub-bus-jss', code: 'BUS101', name: 'Business Studies', category: 'Commercial', levelGroup: 'JSS' },
+  { id: 'sub-trd-jss', code: 'TRD101', name: 'Trade Subject', category: 'Commercial', levelGroup: 'JSS' },
+  { id: 'sub-frn-jss', code: 'FRN101', name: 'French', category: 'Arts', levelGroup: 'JSS' },
+
+  // SS 1 - 3 Subjects
+  { id: 'sub-mth-ss', code: 'MTH201', name: 'General Mathematics', category: 'Core', levelGroup: 'SSS' },
+  { id: 'sub-eng-ss', code: 'ENG201', name: 'English Language', category: 'Core', levelGroup: 'SSS' },
+  { id: 'sub-chs-ss', code: 'CHS201', name: 'Citizenship and Heritage Studies', category: 'Core', levelGroup: 'SSS' },
+  { id: 'sub-dig-ss', code: 'DIG201', name: 'Digital Technologies', category: 'Science', levelGroup: 'SSS' },
+  { id: 'sub-bio-ss', code: 'BIO201', name: 'Biology', category: 'Science', levelGroup: 'SSS' },
+  { id: 'sub-chm-ss', code: 'CHM201', name: 'Chemistry', category: 'Science', levelGroup: 'SSS' },
+  { id: 'sub-phy-ss', code: 'PHY201', name: 'Physics', category: 'Science', levelGroup: 'SSS' },
+  { id: 'sub-agr-ss', code: 'AGR201', name: 'Agriculture', category: 'General', levelGroup: 'SSS' },
+  { id: 'sub-fmt-ss', code: 'FMT201', name: 'Further Mathematics', category: 'Science', levelGroup: 'SSS' },
+  { id: 'sub-ped-ss', code: 'PED201', name: 'Physical Education', category: 'General', levelGroup: 'SSS' },
+  { id: 'sub-hed-ss', code: 'HED201', name: 'Health Education', category: 'General', levelGroup: 'SSS' },
+  { id: 'sub-fnt-ss', code: 'FNT201', name: 'Foods & Nutrition', category: 'Commercial', levelGroup: 'SSS' },
+  { id: 'sub-geo-ss', code: 'GEO201', name: 'Geography', category: 'General', levelGroup: 'SSS' },
+  { id: 'sub-his-ss', code: 'HIS201', name: 'Nigerian History', category: 'Arts', levelGroup: 'SSS' },
+  { id: 'sub-gov-ss', code: 'GOV201', name: 'Government', category: 'Arts', levelGroup: 'SSS' },
+  { id: 'sub-lit-ss', code: 'LIT201', name: 'Literature in English', category: 'Arts', levelGroup: 'SSS' },
+  { id: 'sub-hmg-ss', code: 'HMG201', name: 'Home Management', category: 'Commercial', levelGroup: 'SSS' },
 ];
 
 export const initialTeachers: Teacher[] = [
@@ -99,8 +123,8 @@ export const initialTeachers: Teacher[] = [
     email: 'ibrahim.sule@divineacademy.edu.ng',
     phone: '+234 802 333 4444',
     subjectsTaught: [
-      { subjectId: 'sub-mth', subjectName: 'Mathematics', classId: 'class-jss1a', className: 'JSS1 A' },
-      { subjectId: 'sub-mth', subjectName: 'Mathematics', classId: 'class-ss2sci', className: 'SS2 Science' },
+      { subjectId: 'sub-mth-jss', subjectName: 'Mathematics', classId: 'class-jss1a', className: 'JSS1 A' },
+      { subjectId: 'sub-mth-ss', subjectName: 'General Mathematics', classId: 'class-ss2sci', className: 'SS2 Science' },
     ],
     isFormTeacherOf: 'JSS1 A',
     status: 'Active',
@@ -115,8 +139,8 @@ export const initialTeachers: Teacher[] = [
     email: 'fatima.bello@divineacademy.edu.ng',
     phone: '+234 803 444 5555',
     subjectsTaught: [
-      { subjectId: 'sub-eng', subjectName: 'English Language', classId: 'class-jss1a', className: 'JSS1 A' },
-      { subjectId: 'sub-eng', subjectName: 'English Language', classId: 'class-jss2a', className: 'JSS2 A' },
+      { subjectId: 'sub-eng-jss', subjectName: 'English Studies', classId: 'class-jss1a', className: 'JSS1 A' },
+      { subjectId: 'sub-eng-ss', subjectName: 'English Language', classId: 'class-jss2a', className: 'JSS2 A' },
     ],
     isFormTeacherOf: 'JSS1 B',
     status: 'Active',
@@ -131,8 +155,8 @@ export const initialTeachers: Teacher[] = [
     email: 'david.oche@divineacademy.edu.ng',
     phone: '+234 805 666 7777',
     subjectsTaught: [
-      { subjectId: 'sub-phy', subjectName: 'Physics', classId: 'class-ss2sci', className: 'SS2 Science' },
-      { subjectId: 'sub-bst', subjectName: 'Basic Science & Tech', classId: 'class-jss2a', className: 'JSS2 A' },
+      { subjectId: 'sub-phy-ss', subjectName: 'Physics', classId: 'class-ss2sci', className: 'SS2 Science' },
+      { subjectId: 'sub-isc-jss', subjectName: 'Intermediate Science', classId: 'class-jss2a', className: 'JSS2 A' },
     ],
     isFormTeacherOf: 'JSS2 A',
     status: 'Active',
@@ -147,8 +171,8 @@ export const initialTeachers: Teacher[] = [
     email: 'grace.yakubu@divineacademy.edu.ng',
     phone: '+234 807 888 9999',
     subjectsTaught: [
-      { subjectId: 'sub-chm', subjectName: 'Chemistry', classId: 'class-ss2sci', className: 'SS2 Science' },
-      { subjectId: 'sub-bio', subjectName: 'Biology', classId: 'class-ss3sci', className: 'SS3 Science' },
+      { subjectId: 'sub-chm-ss', subjectName: 'Chemistry', classId: 'class-ss2sci', className: 'SS2 Science' },
+      { subjectId: 'sub-bio-ss', subjectName: 'Biology', classId: 'class-ss3sci', className: 'SS3 Science' },
     ],
     isFormTeacherOf: 'JSS3 A',
     status: 'Active',
@@ -243,7 +267,7 @@ export const initialCBTExams: CBTExam[] = [
   {
     id: 'exam-jss1-mth-1',
     title: 'JSS1 Mathematics 1st Term Mid-Term CBT Test',
-    subjectId: 'sub-mth',
+    subjectId: 'sub-mth-jss',
     subjectName: 'Mathematics',
     classId: 'class-jss1a',
     className: 'JSS1 A',
@@ -331,7 +355,7 @@ export const initialCBTExams: CBTExam[] = [
   {
     id: 'exam-ss2-phy-1',
     title: 'SS2 Physics Mid-Term CBT Test',
-    subjectId: 'sub-phy',
+    subjectId: 'sub-phy-ss',
     subjectName: 'Physics',
     classId: 'class-ss2sci',
     className: 'SS2 Science',

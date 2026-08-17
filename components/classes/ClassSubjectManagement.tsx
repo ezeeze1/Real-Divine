@@ -2,26 +2,52 @@
 
 import React, { useState } from 'react';
 import { useSchool } from '@/context/SchoolContext';
-import { BookOpenCheck, Plus, School, BookMarked, Layers } from 'lucide-react';
+import { Subject } from '@/lib/types';
+import { BookOpenCheck, Plus, School, BookMarked, Layers, Pencil, Trash2 } from 'lucide-react';
 
 export const ClassSubjectManagement: React.FC = () => {
-  const { classes, subjects, teachers, addClass, addSubject } = useSchool();
+  const { classes, subjects, teachers, addClass, addSubject, updateSubject, deleteSubject } = useSchool();
   const [activeTab, setActiveTab] = useState<'classes' | 'subjects'>('classes');
 
   // Modals
   const [showClassModal, setShowClassModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
 
   // New Class Form
   const [className, setClassName] = useState('');
   const [level, setLevel] = useState<'JSS1' | 'JSS2' | 'JSS3' | 'SS1' | 'SS2' | 'SS3'>('JSS1');
   const [arm, setArm] = useState<'A' | 'B' | 'Science' | 'Arts' | 'Commercial'>('A');
 
-  // New Subject Form
+  // Subject Form
   const [subjectCode, setSubjectCode] = useState('');
   const [subjectName, setSubjectName] = useState('');
   const [category, setCategory] = useState<'Core' | 'Science' | 'Arts' | 'Commercial' | 'General'>('Core');
   const [levelGroup, setLevelGroup] = useState<'JSS' | 'SSS' | 'ALL'>('ALL');
+
+  const openAddSubjectModal = () => {
+    setEditingSubject(null);
+    setSubjectCode('');
+    setSubjectName('');
+    setCategory('Core');
+    setLevelGroup('ALL');
+    setShowSubjectModal(true);
+  };
+
+  const openEditSubjectModal = (sub: Subject) => {
+    setEditingSubject(sub);
+    setSubjectCode(sub.code);
+    setSubjectName(sub.name);
+    setCategory(sub.category);
+    setLevelGroup(sub.levelGroup);
+    setShowSubjectModal(true);
+  };
+
+  const handleDeleteSubject = (sub: Subject) => {
+    if (window.confirm(`Are you sure you want to delete the subject "${sub.name}" (${sub.code})?`)) {
+      deleteSubject(sub.id);
+    }
+  };
 
   const handleCreateClass = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,19 +63,29 @@ export const ClassSubjectManagement: React.FC = () => {
     setShowClassModal(false);
   };
 
-  const handleCreateSubject = (e: React.FormEvent) => {
+  const handleSaveSubject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!subjectName.trim() || !subjectCode.trim()) return;
 
-    addSubject({
-      code: subjectCode.trim().toUpperCase(),
-      name: subjectName.trim(),
-      category,
-      levelGroup,
-    });
+    if (editingSubject) {
+      updateSubject(editingSubject.id, {
+        code: subjectCode.trim().toUpperCase(),
+        name: subjectName.trim(),
+        category,
+        levelGroup,
+      });
+    } else {
+      addSubject({
+        code: subjectCode.trim().toUpperCase(),
+        name: subjectName.trim(),
+        category,
+        levelGroup,
+      });
+    }
 
     setSubjectCode('');
     setSubjectName('');
+    setEditingSubject(null);
     setShowSubjectModal(false);
   };
 
@@ -139,7 +175,7 @@ export const ClassSubjectManagement: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-end">
             <button
-              onClick={() => setShowSubjectModal(true)}
+              onClick={openAddSubjectModal}
               className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
@@ -155,6 +191,7 @@ export const ClassSubjectManagement: React.FC = () => {
                   <th className="p-4">Subject Name</th>
                   <th className="p-4">Category</th>
                   <th className="p-4">Applicable Level</th>
+                  <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -168,6 +205,24 @@ export const ClassSubjectManagement: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-4 font-semibold text-slate-600">{sub.levelGroup}</td>
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={() => openEditSubjectModal(sub)}
+                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] rounded-lg border border-amber-200 transition inline-flex items-center gap-1"
+                        title="Edit Subject"
+                      >
+                        <Pencil className="w-3 h-3 text-amber-600" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSubject(sub)}
+                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] rounded-lg border border-rose-200 transition inline-flex items-center gap-1"
+                        title="Delete Subject"
+                      >
+                        <Trash2 className="w-3 h-3 text-rose-600" />
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -253,18 +308,20 @@ export const ClassSubjectManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Add Subject Modal */}
+      {/* Add / Edit Subject Modal */}
       {showSubjectModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="font-bold text-slate-900 text-base">Add New Subject</h3>
+              <h3 className="font-bold text-slate-900 text-base">
+                {editingSubject ? `Edit Subject: ${editingSubject.name}` : 'Add New Subject'}
+              </h3>
               <button onClick={() => setShowSubjectModal(false)} className="text-slate-400 font-bold text-sm">
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubject} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveSubject} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Subject Code *</label>

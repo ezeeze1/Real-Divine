@@ -71,6 +71,8 @@ interface SchoolContextType {
 
   addClass: (cls: Omit<SchoolClass, 'id' | 'studentCount'>) => void;
   addSubject: (sub: Omit<Subject, 'id'>) => void;
+  updateSubject: (id: string, updated: Partial<Subject>) => void;
+  deleteSubject: (id: string) => void;
 
   // CBT Actions
   createCBTExam: (exam: Omit<CBTExam, 'id' | 'createdAt'>) => void;
@@ -297,9 +299,17 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addSubject = (subData: Omit<Subject, 'id'>) => {
-    const id = `sub-${subData.code.toLowerCase()}`;
+    const id = `sub-${subData.code.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
     const newSub: Subject = { ...subData, id };
     setSubjects((prev) => [...prev, newSub]);
+  };
+
+  const updateSubject = (id: string, updated: Partial<Subject>) => {
+    setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)));
+  };
+
+  const deleteSubject = (id: string) => {
+    setSubjects((prev) => prev.filter((s) => s.id !== id));
   };
 
   // CBT
@@ -562,6 +572,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateTeacher,
         addClass,
         addSubject,
+        updateSubject,
+        deleteSubject,
         createCBTExam,
         updateCBTExam,
         submitCBTAttempt,
