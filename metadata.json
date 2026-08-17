@@ -1,0 +1,6 @@
+{
+  "name": "Divine Academy School Portal",
+  "description": "Comprehensive School Management Portal with CBT Examination System, Result Management, and JSS1-SS3 Curriculum Centre for Divine Academy Secondary School, Okene.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
